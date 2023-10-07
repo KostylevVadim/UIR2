@@ -2,6 +2,7 @@
 class Work_on_file:
     @staticmethod
     def set_Times_new_roman_everywhere(file, result):
+        
         in_body = 0
         array= []
         for line in file:
