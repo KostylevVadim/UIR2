@@ -19,7 +19,7 @@ class Work_on_file:
             if 'w:rFonts' in el and in_body == 1:
                 el = '<w:rFonts w:asciiTheme="majorBidi" w:eastAsia="Times New Roman" w:hAnsiTheme="majorBidi" w:cstheme="majorBidi"/>'
             if in_body == 1 and 'w:rPr' in array[i-1]:
-                print(el)
+                
                 if 'w:rFonts' not in el:
                     result.write('<w:rFonts w:asciiTheme="majorBidi" w:eastAsia="Times New Roman" w:hAnsiTheme="majorBidi" w:cstheme="majorBidi"/>')
 
