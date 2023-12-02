@@ -2,33 +2,14 @@ from abc import ABC, abstractstaticmethod
 import xml.etree.ElementTree as ET
 import lxml.etree as et
 import re
-
+from iwork_on_file import Iwork_on_file
     
 ##Пока не учел что текст в таблицах может требовать свои фигулины в межстрочном интервале.
 ##Переделать таймс нью роман
 ##Переделать особое frst line space для тех что с отступом
-class Iwork_on_file(ABC):
-    @abstractstaticmethod
-    def set_Times_new_roman_everywhere(file, result):
-        pass
-    @abstractstaticmethod
-    def set_spacing(file, result):
-        pass
-    @abstractstaticmethod
-    def set_first_linespace(file, result):
-        pass
-    @abstractstaticmethod
-    def set_justification(file, result):
-        pass
-    @abstractstaticmethod
-    def size_of_letters(file, result, list_of_names_of_sections, name_of_article):
-        pass
-
 
 class Work_on_file(Iwork_on_file):
     __namespaces = {'w':"http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
-    
-    
     @staticmethod
     def __find_Properties(paragraph):
         par_prop = paragraph.findall('.//w:pPr', Work_on_file.__namespaces)
@@ -147,10 +128,10 @@ class Work_on_file(Iwork_on_file):
     @staticmethod
     def __find_rPr(paragraph):
         par_prop = paragraph.findall('.//w:rPr', Work_on_file.__namespaces)
-        return par_prop[0]
-
-    
-        
+        if len(par_prop)>0:
+            return par_prop[0]
+        else:
+            return None
 
 
     @staticmethod
@@ -294,9 +275,13 @@ class Work_on_file(Iwork_on_file):
                             "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val":'26'
                         })
                     # for elem in rpr:
-                    #     print(elem.tag, elem.attrib)    
-                    sz = rpr.findall('.//w:sz', Work_on_file.__namespaces)
-                    szCs = rpr.findall('.//w:szCs', Work_on_file.__namespaces)
+                    #     print(elem.tag, elem.attrib)
+                    # 
+                    sz = []
+                    szCs = []
+                    if rpr is not None:    
+                        sz = rpr.findall('.//w:sz', Work_on_file.__namespaces)
+                        szCs = rpr.findall('.//w:szCs', Work_on_file.__namespaces)
                     if len(sz)>0 and len(szCs)>0:
                         x = sz[0]
                         y = szCs[0]
@@ -304,7 +289,7 @@ class Work_on_file(Iwork_on_file):
                         x.attrib["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val"] = '24'
                         
                         y.attrib["{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val"] = '24'
-                    else:
+                    elif rpr is not None:
                         et.SubElement(rpr,"{http://schemas.openxmlformats.org/wordprocessingml/2006/main}sz",{
                             "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val":'26'
                         })
@@ -356,16 +341,16 @@ class Work_on_file(Iwork_on_file):
     
     
 
-    @staticmethod
-    def size_of_letters(file, result, list_of_names_of_sections, name_of_article):
-        etree = et.parse(file)
-        root =  etree.getroot()
-        elements = Work_on_file.__chage_size_of_name(root,name_of_article)
-        elements = Work_on_file.__change_size_of_sections(root, list_of_names_of_sections, name_of_article)
+    # @staticmethod
+    # def change_size_of_letters(file, result, list_of_names_of_sections, name_of_article):
+    #     etree = et.parse(file)
+    #     root =  etree.getroot()
+    #     elements = Work_on_file.__chage_size_of_name(root,name_of_article)
+    #     elements = Work_on_file.__change_size_of_sections(root, list_of_names_of_sections, name_of_article)
         
-        s = et.tounicode(etree)
+    #     s = et.tounicode(etree)
         
-        result.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+str(s))
-        return result
+    #     result.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+str(s))
+    #     return result
     
 
