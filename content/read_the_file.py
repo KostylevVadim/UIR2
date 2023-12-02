@@ -89,7 +89,7 @@ class Read_the_file:
         
     def write_file(self):
         # file = open('result.txt','r+')
-        with open('result.txt', "w", encoding="utf-8") as file:
+        with open('out/result.txt', "w+", encoding="utf-8") as file:
             file.write('Требования формата\n')
             for key, value in self.__requirements_of_format.items():
                 file.write(key+' '+str(value)+'\n')
@@ -127,8 +127,7 @@ class Read_the_file:
             text_arr = text.split(' ')
             for i, word in enumerate(text_arr):
                 # print(word)
-                if 'А4' in word:
-                    print(word, re.fullmatch(pattern, word.lower()))
+                
                 if 'А4' in word or 'А3' in word or 'А0' in word or 'А1' in word or 'А2' in word or 'А5' in word or 'А6' in word:
                     self.__requirements_of_format['Format']= word
                 
@@ -184,7 +183,7 @@ class Read_the_file:
                 self.__additional['formula'] += ' '+ text 
             elif elem ==1:
                 form = 0
-            print(elem, pic, form, tab)
+            # print(elem, pic, form, tab)
             for font in self.__recognized_fonts:
                 if font in text:
                     if tab+form+pic == 0 and self.__requirements_of_style['Font'] is None :
@@ -247,7 +246,7 @@ class Read_the_file:
                 
             ind = 'отступ' in text.lower() and ('абзацный' in text.lower() or 'абзаца' in text.lower()) and 'первой' not in text.lower()
             if ind:
-                print('here')
+                # print('here')
                 text_array = text.split(' ')
                 
                 s = ''
