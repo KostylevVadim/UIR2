@@ -123,7 +123,7 @@ class Read_the_file:
         for i, paragraph in enumerate(paragraphs):
             text = self.__get_text_from_element(paragraph)
             # print(text)
-            pattern = r'a\d\+'
+            # pattern = r'a\d\+'
             text_arr = text.split(' ')
             for i, word in enumerate(text_arr):
                 # print(word)

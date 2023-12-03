@@ -2,7 +2,7 @@ import zipfile
 import os
 from content.read_the_file import Read_the_file
 def file_opener():
-    results = [each for each in os.listdir('./in_directory') if '.x' in each]
+    results = [each for each in os.listdir('./in_directory') if '.xml' in each]
     print('Файлы для анализа')
     print(*results)
     x = input('Введите название файла, которых хотите анализировать: ')
