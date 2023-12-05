@@ -7,8 +7,10 @@ class Read_the_file:
     __recognized_fonts=['Times New Roman',
                      'Calibri', 'Arial']
     __recognized_lit_templates = [
-        'ГОСТ Р 7.0.100-2018',
-        'ГОСТ Р 7.0.5–2008',
+        'ГОСТ Р 7.0.100 -2018',
+        'ГОСТ Р 7.0.5 -2008',
+        'ГОСТ Р 7.0.5 --2008',
+        'Ванкуверский стиль',
         'Vancouver',
         'Harvard',
         'Council of Biology Editors',
@@ -29,17 +31,43 @@ class Read_the_file:
         'IEEE',
         'ALWD'
     ]
+    __recognized_formats = 'xf, plt, gif, cgm, cdr, eps, jpg, pcd, pct, drw, pcx, png, tif, tga, dib, bmp, rle, wmf, emf, wpg'.split(', ')
+    __recognized_struct_elems = [
+        'УДК',
+        'Заглавие',
+        'Заголовок',
+        'Название статьи',
+        'Сведения об авторе/авторах',
+        'Список организаций',
+        'e-mail',
+        'Аннотация',
+        'Ключевые слова',
+        'Основной текст статьи',
+        'Список литературы',
+        'Автор',
+        'Сведения об автор',
+        'текст статьи',
+        'Графический материал',
+        'формул',
+        'таблиц',
+        'рисун',
+        'Формул'
+    ]
+    
     __namespaces = {'w':"http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
     lang = 'rus'
-    
+    __recognized_elems = ['Название статьи', 'Автор', 'Рис','Изобр', 'Аннотация', 'Ключевые слова', 'Список литературы', 'текст']
     def __init__(self, file):
         self.__etree = et.parse(file)
         self.__root =  self.__etree.getroot()
         self.__requirements_of_format ={
             'Format': None,
+            #  Язык статьи один, требуется в конце + анатация и все такое, отедельные на английском. Я предлагаю. 
+            # У журналов нет классификации. 
             'lang': None,
             'Numeration': None
         }
+        # Для удобства пользователя - бред, не было в задании, пользователя убрать, машиннообрабатываемое представление.
         self.__requirements_of_style = {
             'Font': None,
             'kegl': None,
@@ -47,18 +75,25 @@ class Read_the_file:
             'interval_string': None,
             'interval_par': None,
             'indent_first': None,
+            
             'field': None,
             'jc': None
 
         }
+        # Проверить список ВАК, диалог, разное посмотреть. Зонт, корпусная лингвистика. Список журналов. Журналы мифи.
+        # Рассмотреть мифи, инженерная физика. КИИ. Нейроинформатика.
+        # Перевести в 0 и 1. Таблица в которой структура заполнена на основе разных статей.
+        # Нормальные структуры данных.
         self.__requirements_of_structure = {
-            'title': '',
+            'Title': '',
+            # Как проработать к статье.
             'Author': '',
             'Annotation': '',
             'Contacts': ''
         }
         self.__requirements_of_literature = {
             'Temlate_name' : '',
+            # точная 
             'Uses examples': []
         }
         self.__additional = {
@@ -66,6 +101,8 @@ class Read_the_file:
             'pic': '',
             'formula':''
         }
+        # Представление требований. Решить. Прочистить
+        # Таблицы для нормальных журналов. BICA
         self.__requirements_of_value = {
             'Min_number_of_pages': None,
             'Min_lit_number' : None,
@@ -145,603 +182,901 @@ class Read_the_file:
 
     # Добавить оформление элементов статей. 
     # Улучшить дополнения по поводу оформления для рисунков, статей, таблиц
+
     def get_style(self):
         paragraphs = self.__get_all_paragraphs()
-        elem = 0
-        pic = 0
-        form = 0
-        tab = 0
-        # text = 0
+        # print(paragraphs)
+        inter = 0
         for i, paragraph in enumerate(paragraphs):
             text = self.__get_text_from_element(paragraph)
+            # print(text)
             
-            p1 = 'оформление рисунков'
-            p2 = 'оформление иллюстраций'
-            t1 = 'оформление таблиц'
-            f1 = 'оформление формул'
-            if 'элементов статьи' in text.lower() or ('рисунки:'in text.lower() or 'таблицы:' in text.lower() or 'формулы:' in text.lower()):
-                elem = 1
-            if ('рисун' in text.lower() or ('графическ' in text.lower() and 'библ' not in text.lower())):
-                pic = 1
-                self.__additional['pic'] += ' '+ text 
-                # print('p', text, 'рисунк' in text.lower(), 'графическ' in text.lower())
+            list_of_sentences = text.split('.')
+            for i, sent in enumerate(list_of_sentences):
                 
-            elif elem ==1:
-                pic = 0
-            
-            if 'таблиц' in text.lower():
-                tab = 1
-                # print('t')
-                self.__additional['tables'] += ' '+ text 
-            elif elem ==1:
-                tab = 0
-
-            
-            if 'формул' in text.lower():
-                form = 1
-                # print('f')
-                self.__additional['formula'] += ' '+ text 
-            elif elem ==1:
-                form = 0
-            # print(elem, pic, form, tab)
-            for font in self.__recognized_fonts:
-                if font in text:
-                    if tab+form+pic == 0 and self.__requirements_of_style['Font'] is None :
-                        self.__requirements_of_style['Font'] = font
-                    break
-            if 'размер' in text.lower() and ('шрифта' in text.lower() or 'шрифт' in text.lower() or 'кегль:' in text.lower() or 'кегль' in text.lower() or 'кегля' in text.lower() or 'кегля:' in text.lower()):
-                # print('hh')
-                text_array = text.split(' ')
-                # print(len(text_array))
-                s = ''
-                for i, word in enumerate(text_array):
-                    if 'размер' in word.lower():
-                        # print(word)
-                        j = i
-                        for x in range(j, len(text_array)):
-                            # print(s)
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x] or ',' in text_array[x]:
-                                break
-                if tab+form+pic == 0 and self.__requirements_of_style['kegl'] is None:
-                    self.__requirements_of_style['kegl'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
-            
-            field = 'поля' in text.lower() or ('размер' in text.lower() and 'полей' in text.lower())
-            # print(field)
-            if field:
-                text_array = text.split(' ')
-                
-                s = ''
-                for i, word in enumerate(text_array):
-                    l = re.search(r'поля\D', " ".join(text_array[i:]))
-                    if 'поля' in word.lower(): 
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                            # print(s)
-                        break
-                    elif 'размер' in  word.lower() and l is not None:
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                if tab+form+pic == 0 and self.__requirements_of_style['field'] is None:
-                    self.__requirements_of_style['field'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
-                
-            ind = 'отступ' in text.lower() and ('абзацный' in text.lower() or 'абзаца' in text.lower()) and 'первой' not in text.lower()
-            if ind:
-                # print('here')
-                text_array = text.split(' ')
-                
-                s = ''
-                for i, word in enumerate(text_array):
-                    l = re.search(r'отступ\D', " ".join(text_array[i:]))
-                    l1 = re.search(r'абзаца\D', " ".join(text_array[i:]))
+                regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                sent_list = x.split(' ')
+                # print('Поля')
+                y = 'верхнее' in x.lower() or 'нижнее' in x.lower() or 'правое' in x.lower() or 'левое' in x.lower()
+                if 'поля' in x.lower() or 'поле' in x.lower() and y:
+                    # print(y)
+                    print('Поля')
+                    for i, elem in enumerate(sent_list):
+                        # print(elem, elem.lower() == 'верхнее', elem.lower() == 'нижнее', elem.lower() == 'правое', elem.lower() == 'левое')
+                        if elem.lower() == 'верхнее':
+                            print('here')
+                            for j in range(i, len(sent_list)):
+                                # print(sent_list[j])
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                        elif elem.lower() == 'нижнее':
+                            for j in range(i, len(sent_list)):
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                        elif elem.lower() == 'правое':
+                            for j in range(i, len(sent_list)):
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                        elif elem.lower() == 'левое':
+                            for j in range(i, len(sent_list)):
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                        elif y == False:
+                            m =0
+                            # print(sent_list)
+                            for j, word in enumerate(sent_list):
+                                # print('поля' in word.lower(), word)
+                                if 'поле' in word.lower() or 'поля' in word.lower():
+                                    m = j
+                                if j> m and word[0].isdigit() and 'см' in word:
+                                    print(word)
+                                    break
+                if 'отступ' in x.lower() and ('первой' in x.lower() or 'красной' in x.lower()):
                     
-                    if 'отступ' in word.lower() and l1 is not None: 
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                    elif ('абзацный' in word.lower() or 'абзаца' in word.lower())and l is not None:
-                        j = i
-                        # print('here2')
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
+                    for i, elem in enumerate(sent_list):
+                        if 'отступ' in elem.lower():
+                            flag = 0
+                            for j in range(i, len(sent_list)):
+                                # print(sent_list[j]
+                                if 'первой' in sent_list[j] or 'красной' in sent_list[j]:
+                                    flag = 1
+                                if sent_list[j][0].isdigit() and flag == 1:
+                                    print('Отступ красной строки')
+                                    print(sent_list[j])
+                                    break
+                # print('Times New Roman' in x)
+                elif 'отступ' in x.lower():
+                    print('Отступ')
+                    n = 'справа' in x.lower() or 'слева' in x.lower() or 'сверху' in x.lower() or 'снизу' in x.lower()
+                    if n:
+                        for n, elem in enumerate(sent_list):
+                            if 'отступ' in elem.lower():
+                                for j in range(n, len(sent_list)):
+                                    # print(sent_list[j]
+                                    if 'справа' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    elif 'слева' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    elif 'сверху' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    elif 'снизу' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                        
+
+                                    
+                    else:
+                        for i, elem in enumerate(sent_list):
+                            if 'отступ' in elem.lower():
+                                for j in range(i, len(sent_list)):
+                                    # print(sent_list[j]
+                                    if sent_list[j][0].isdigit():
+                                        print(sent_list[j])
+                                        break
+                                            
+                for font in self.__recognized_fonts:
+                    if font in x:
+                        print('Font')
+                        print(font)
+                if 'шрифт' in x.lower() or 'кегль' in x.lower():
+                    
+                    for j in range(i, len(sent_list)):
+                        if sent_list[j][0].isdigit():
+                            print('Кегль')
+                            print(sent_list[j])
+                            break
+                fl = 0
                 
-                if tab+form+pic == 0 and self.__requirements_of_style['indent'] is None:
-                    self.__requirements_of_style['indent'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
+                if 'выравнивание' in x.lower() and fl ==0:
+                    # print(fl, sent_list, i)
+                    print('Выравнивание')
+                    for j in range(i, len(sent_list)):
+                        if 'ширине' in sent_list[j]:
+                            print('ширине')
+                        elif 'левому' in sent_list[j]:
+                            print('левому краю')
+                        elif 'правому' in sent_list[j]:
+                            print('правому краю')
+                        elif 'центру' in sent_list[j]:
+                            print('центру')
                 
-            
-            int_f = 'интервал' in text.lower() and ('междустрочный' in text.lower() or 'межстрочный' in text.lower() or
-                                                    'между строками' in text.lower())
-            if int_f:
-                text_array = text.split(' ')
-                s = ''
-                for i, word in enumerate(text_array):
-                    if 'интервал' in word.lower() and re.search(r'между строками', " ".join(text_array[i:])):
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                    elif (word.lower() == 'междустрочный' or word.lower() == 'межстрочный'):
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                if tab+form+pic == 0 and self.__requirements_of_style['interval_string'] is None:
-                    self.__requirements_of_style['interval_string'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
-                # self.__requirements_of_style['interval_string'] = s
-
-            int_p = 'интервал' in text.lower() and ('между абзацами' in text.lower())
-            if int_p:
-                # print('here')
-                text_array = text.split(' ')
-                s = ''
-                for i, word in enumerate(text_array):
-                    # print(" ".join(text_array[i:]), re.search(r'между абзацами', " ".join(text_array[i:])) is not None, word == 'интервал')
-                    if word.lower() == 'интервал' and re.search(r'между абзацами', " ".join(text_array[i:])) is not None:
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                if tab+form+pic == 0 and self.__requirements_of_style['interval_par'] is None:
-                    self.__requirements_of_style['interval_par'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
-                # self.__requirements_of_style['interval_par'] = s
-
-            if 'выравнивание' in text.lower():
-                text_array = text.split(' ')
-                s = ''
-                for i, word in enumerate(text_array):
-                    if word.lower() == 'выравнивание':
-                        j = i
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                
-                if tab+form+pic == 0 and self.__requirements_of_style['jc'] is None:
-                    self.__requirements_of_style['jc'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
-                # self.__requirements_of_style['jc'] = s
-            if 'отступ' in text.lower() and ('первой строки' in text.lower() or 'красной строки' in text.lower() or 'красная строка' in text.lower()) :
-                text_array = text.lower().split(' ')
-                s = ''
-                # print('tut')
-                for i, word in enumerate(text_array):
-                    f_s = re.search(r'первой строки', " ".join(text_array[i:])) is not None
-                    k_s = re.search(r'красной строки', " ".join(text_array[i:])) is not None
-                    f_s1 = re.search(r'первая строка', " ".join(text_array[i:])) is not None
-                    k_s1 = re.search(r'красная строка', " ".join(text_array[i:])) is not None
-                    if word.lower() == 'отступ' and (f_s or k_s or f_s1 or k_s1):
-                        j = i
-                        # print('zdes')
-                        for x in range(j, len(text_array)):
-                            s+= str(text_array[x])+ ' '
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                                break
-                        break
-                if tab+form+pic == 0 and self.__requirements_of_style['indent_first'] is None:
-                    self.__requirements_of_style['indent_first'] = s
-                # elif pic == 1:
-                #     self.__additional['pic'] += s
-                # elif tab == 1:
-                #     self.__additional['tables'] +=s
-                # elif form == 1:
-                #     self.__additional['formula']+=s
-
-
-
-
-        # print(self.__requirements_of_style)
-        # print(self.__additional)
-        
-    
+                if 'интервал' in x.lower() and ('абзац' not in x.lower()) and inter == 0:
+                    print('Межстрочный интервал')
+                    for j, word in enumerate(sent_list):
+                        u = 0
+                        if 'интервал' in word.lower():
+                            # print(j, word)
+                            t = j
+                            fl = 0
+                            while sent_list[t][-1]!=',':
+                                
+                                if sent_list[t][0].isdigit():
+                                    fl =1
+                                    u = 1
+                                    print(sent_list[t])
+                                    inter = 1
+                                    break
+                                t+=1
+                                if t>=len(sent_list):
+                                    break
+                            if fl == 0:
+                                # print('here', 'одинарн' in x, x)
+                                if 'полуторны' in x or 'полтора' in x:
+                                    print('1,5')
+                                    u = 1
+                                    inter = 1
+                                if 'одинарн' in x or 'одинар' in x:
+                                    print('1')
+                                    u = 1
+                                    inter = 1
+                        if u == 1:
+                            break
+                    
+                    # for j in range(i, len(sent_list)):
+                    #     if 'по' in sent_list[j].lower():
+                    #         print(sent_list[j], sent_list[j+1])
 
     def get_literature(self):
         paragraphs = self.__get_all_paragraphs()
         for i, paragraph in enumerate(paragraphs):
             text = self.__get_text_from_element(paragraph)
             for style in self.__recognized_lit_templates:
+                # if 'ГОСТ' in text:
+                #     print(text, style, style in text)
                 if style in text:
+
                     self.__requirements_of_literature['Temlate_name'] = style
+                    print(style)
                     break
     
     def get_additional(self):
+        mesures = ['больше', 'меньше', 'от', 'до','более', 'менее', 'превышал']
         paragraphs = self.__get_all_paragraphs()
         for i, paragraph in enumerate(paragraphs):
             text = self.__get_text_from_element(paragraph)
-            s = ''
-            table = 'таблицы' in text.lower() and ('название' in text.lower() or ('шрифт' in text.lower() or 'размер' in text.lower()) 
-                                                   or 'номер' in text.lower() or 'интервал' in text.lower())
-            pic = 'рисун' in text.lower() 
-            formula = 'формул' in text.lower()
-            s_all = ''
-            if table:
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                for i, word in enumerate(text_array):
-                    if 'интервал' in word.lower():
+            # Рисунки. Учитываем площадь, формат.
+            
+            
+            if 'Рис' in text:
+                n_text = ''
+                for i, a in enumerate(text):
+                    # if 
+                    if i>0 and i<len(text)-2 and text[i] =='.':
+                        # print(text[i-1], text[i+1])
                         
-                        s_inter = []
-                        j_for = i
-                        j_b = i-1
-                        # print(word, j_for, j_b)
-                        if j_b>=0:
-                            # print(j_b)
-                            while j_b >=0: 
-                                if '.' not in text_array[j_b] and ';' not in text_array[j_b] and '\n' not in text_array[j_b] and ',' not in text_array[j_b]:
-                                    s_inter.insert(0,text_array[j_b])
-                                    j_b-=1
-                                else: 
-                                    break
-                            # print(s_inter)
-                        for x in range(j_for, len(text_array)):
-                            if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x] or ',' in text_array[x]:
-                                s_inter.append(text_array[x])
-                                break
-                            s_inter.append(text_array[x])
-                        s1 = " ".join(s_inter)
-                        # print(s1)
-                        s_all += s1
-                    j_temp = i
-                    while '.' not in text_array[j_temp] and ';' not in text_array[j_temp] and '\n' not in text_array[j_temp]:
-                        j_temp+=1
-                    # print(i, j_temp, text_array[j_temp])
-                    tables = re.search(r'таблицы', " ".join(text_array[i:j_temp])) is not None
-                    
-                    if 'размер' in word.lower() and tables:
-                        s_inter = []
-                        j_for = i
-                        for x in range(j_for, len(text_array)):
-                            s_inter.append(text_array[x])
-                            # if '.' in text_array[x] or ';' in text_array[x] or '\n' in text_array[x]:
-                            #     s_inter.append(text_array[x])
-                            if x< len(text_array):
-                                if text_array[x+1][0].isupper():
-                                    break
-                            
-                        s2 = " ".join(s_inter)
-                        s_all += s2
-                        # print(s2)
-                    
-                    if 'название' in word.lower():
-                        s_inter = []
-                        j_for = i
-                        for x in range(j_for, len(text_array)):
-                            s_inter.append(text_array[x])
-                            if x< len(text_array):
-                                if text_array[x+1][0].isupper():
-                                    break
-                            
-                        s3 = " ".join(s_inter)
-                        s_all += s3
-                        # print(s3)
-                    
-                    if 'нумеруются' in word.lower():
-                        s_inter = []
-                        j_for = i
-                        for x in range(j_for, len(text_array)):
-                            s_inter.append(text_array[x])
-                            # print(x, len(text_array))
-                            if x < len(text_array):
-                                if text_array[x+1][0].isupper():
-                                    break
-                            
-                        s4 = " ".join(s_inter)
-                        s_all += s4
-                        # print(s4)
-                    
-                    # Выравнивание, сдалеать дополнительные проверки на вхождение до.
-                    # print(s_all)
-                    if 'выравн' in word.lower():
-                        if 'выравн' in s_all:
-                            pass
+                        if text[i+2].islower():
+                            n_text += '_'
                         else:
-                            s_inter = []
-                            j_for = i
-                            for x in range(j_for, len(text_array)):
-                                s_inter.append(text_array[x])
-                                # print(x, len(text_array))
-                                if x < len(text_array):
-                                    if text_array[x+1][0].isupper():
-                                        break
-                                
-                            s5 = " ".join(s_inter)
-                            s_all += s5
-                            # print(s5)
+                            n_text += '.'
+                    else:
+                        n_text += a
+                # print(n_text)
+                list_of_sentences = n_text.split('.')
+                # print(self.__recognized_formats)
+                for format in self.__recognized_formats:
+                    if format in text:
+                        print(format)
+                
+                for j, sent in enumerate(list_of_sentences):
+                    if 'размер' in sent.lower():
+                        # print('РАЗМЕР')
+                        nm = 0
+                        regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                        x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                        sent_list = x.split(' ')
+                        for k, word in enumerate(sent_list):
+                            if 'размер' in word:
+                                nm = k
+                        # print(nm, sent_list)
+                        op =0
+                        for k in range(nm, len(sent_list)):
+                                # print(sent_list[k])
+                                if len(sent_list[k])>0:
+                                    if sent_list[k][0].isdigit() and ('мм' in sent_list[k] or 'см' in sent_list[k]):
+                                        print(sent_list[k])
+                                        op = 1
+                                    
+                                    n = k
+                                    t = k 
+                                    
+                                    while n>1 and op == 1:
+                                        # print(sent_array[n])
+                                        if sent_list[n].lower() in mesures:
+                                            print(sent_list[n])
+                                            n-=1
+                                            
+                                            break
+                                        n-=1
+                                    # print(sent_array[n])
+                                    if 'не' in sent_list[n] and op ==1:
+                                        print('не')
+                                    while t < len(sent_list):
+                                        if 'ширин' in sent_list[t]:
+                                            print('ш')
+                                        if 'выс' in sent_list[t]:
+                                            print('в')
+                                        t+=1
+                    
+                    if 'разрешение' in sent:
+                        nm = 0
+                        regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                        x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                        sent_list = x.split(' ')
+                        for k, word in enumerate(sent_list):
+                            if 'разреш' in word:
+                                nm = k
+                        # print(nm, sent_list)
+                        for k in range(nm, len(sent_list)):
+                                # print(sent_list[k])
+                                if sent_list[k][0].isdigit():
+                                    print(sent_list[k])
 
-        # for i, paragraph in enumerate(paragraphs):
-        #     text = self.__get_text_from_element(paragraph)
-        #     s = ''
-        #     pic = 'рисун' in text.lower()
-
+            if 'Таб' in text:
+                for j, sent in enumerate(list_of_sentences):
+                    if 'размер' in sent.lower():
+                        # print('РАЗМЕР')
+                        nm = 0
+                        regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                        x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                        sent_list = x.split(' ')
+                        for k, word in enumerate(sent_list):
+                            if 'размер' in word:
+                                nm = k
+                        # print(nm, sent_list)
+                        op =0
+                        for k in range(nm, len(sent_list)):
+                                # print(sent_list[k])
+                                if len(sent_list[k])>0:
+                                    if sent_list[k][0].isdigit() and ('мм' in sent_list[k] or 'см' in sent_list[k]):
+                                        print(sent_list[k])
+                                        op = 1
+                                    
+                                    n = k
+                                    t = k 
+                                    
+                                    while n>1 and op == 1:
+                                        # print(sent_array[n])
+                                        if sent_list[n].lower() in mesures:
+                                            print(sent_list[n])
+                                            n-=1
+                                            
+                                            break
+                                        n-=1
+                                    # print(sent_array[n])
+                                    if 'не' in sent_list[n] and op ==1:
+                                        print('не')
+                                    while t < len(sent_list):
+                                        if 'ширин' in sent_list[t]:
+                                            print('ш')
+                                        if 'выс' in sent_list[t]:
+                                            print('в')
+                                        t+=1
+                                  
     
     def get_values(self):
+        fl = 0
         paragraphs = self.__get_all_paragraphs()
+        mesures = ['больше', 'меньше', 'от', 'до','более', 'менее', 'превышал']
         for i, paragraph in enumerate(paragraphs):
             text = self.__get_text_from_element(paragraph)
-            s = ''
-            pages = (('страниц' in text.lower() or 'символов'in text.lower() or 'знаков'in text.lower()) and 'количество' in text.lower()) or (('объём' in text.lower() or 'объем' in text.lower()) and ('статьи' in text.lower() or 'текста' in text.lower()))
+            list_of_sentences = text.split('.')
             
-            if pages:
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                for i, word in enumerate(text_array):
-                    n = " ".join(text_array[i:])
+            if 'ключевые слова' in text.lower():
+                regex = re.compile("(\d )", re.S)
+                for sent in list_of_sentences:
+                    regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                    x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                    # print(x)
+                    sent_array = x.lower().split(' ')
+                    for j,word in enumerate(sent_array):
+                        if len(word)> 0:
+                            if word[0].isdigit() and j>0:
+                                print(word)
+                                n = j
+                                while n>1:
+                                    # print(sent_array[n])
+                                    if sent_array[n].lower() in mesures:
+                                        print(sent_array[n])
+                                        n-=1
+                                        break
+                                    n-=1
+                                # print(sent_array[n])
+                                if 'не' in sent_array[n]:
+                                    print('не')
+
+            for j, sent in enumerate(list_of_sentences):
+                regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                point = 0
+                if 'объем' in x.lower() or 'объём' in x.lower() and ('статьи' in x.lower() or 'текст' in x.lower()):
+                    sent_array = x.lower().split(' ')
+                    # print('here')
+                    for p, word in enumerate(sent_array):
+                        if 'статьи' in word or 'текст' in word:
+                            # print(p, word)
+                            point = p
+                    k = 0
+                    for l, word in enumerate(sent_array):
+                        # print(fl)
+                        if  'объем' in word.lower() or 'объём' in word.lower():
+                            k = 1
+                        if len(word)>0:
+                            if k == 1 and word[0].isdigit():
+                                z = word
+                                # не более не менее. простмотреть.
+                                if 'знаков' in word or 'стр' in word:
+                                    print(word)
+                                    n = l
+                                    while n>1:
+                                        # print(sent_array[n])
+                                        if sent_array[n].lower() in mesures:
+                                            print(sent_array[n])
+                                            n-=1
+                                            break
+                                        n-=1
+                                    # print(sent_array[n])
+                                    if 'не' in sent_array[n]:
+                                        print('не')
+                
+            if 'список литературы' in text.lower() or 'списка литературы' in text.lower():
+                # print('Р')
+                regex = re.compile("(\d )", re.S)
+                for sent in list_of_sentences:
+                    regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                    x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                    # print(x)
+                    sent_array = x.lower().split(' ')
+                    for j,word in enumerate(sent_array):
+                        if len(word)> 0:
+                            if word[0].isdigit() and j>0 and word[-1].isalpha() and word[-2].isalpha():
+                                print(word)
+                                n = j
+                                while n>1:
+                                        # print(sent_array[n])
+                                    if sent_array[n].lower() in mesures:
+                                        print(sent_array[n])
+                                        n-=1
+                                        break
+                                    n-=1
+                                    # print(sent_array[n])
+                                if 'не' in sent_array[n]:
+                                    print('не')
+
+            if 'рисунков' in text.lower():
+                regex = re.compile("(\d )", re.S)
+                for sent in list_of_sentences:
+                    regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                    x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                    # print(x)
+                    sent_array = x.lower().split(' ')
+                    for j,word in enumerate(sent_array):
+                        if len(word)> 0:
+                            if word[0].isdigit() and j>0 and word[-1].isalpha() and word[-2].isalpha() and 'рис' in word:
+                                print(word)
+                                n = j
+                                while n>1:
+                                        # print(sent_array[n])
+                                    if sent_array[n].lower() in mesures:
+                                        print(sent_array[n])
+                                        n-=1
+                                        break
+                                    n-=1
+                                    # print(sent_array[n])
+                                if 'не' in sent_array[n]:
+                                    print('не')         
+
+    def __get_data_of_style(self, text):
+        list_of_sentences = text.split('.')
+        inter = 0
+        for i, sent in enumerate(list_of_sentences):
+            regex = re.compile("(\d )", re.S)
+            x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+            sent_list = x.split(' ')
+            # print(sent_list)
+            y = 'верхнее' in x.lower() or 'нижнее' in x.lower() or 'правое' in x.lower() or 'левое' in x.lower()
+            if 'поля' in x.lower() or 'поле' in x.lower() and y:
+                    # print(y)
+                print('Поля')
+                for i, elem in enumerate(sent_list):
+                        # print(elem, elem.lower() == 'верхнее', elem.lower() == 'нижнее', elem.lower() == 'правое', elem.lower() == 'левое')
+                    if elem.lower() == 'верхнее':
+                        print('here')
+                        for j in range(i, len(sent_list)):
+                                # print(sent_list[j])
+                            if sent_list[j][0].isdigit():
+                                print(sent_list[j])
+                                break
+                    elif elem.lower() == 'нижнее':
+                            for j in range(i, len(sent_list)):
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                    elif elem.lower() == 'правое':
+                            for j in range(i, len(sent_list)):
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                    elif elem.lower() == 'левое':
+                            for j in range(i, len(sent_list)):
+                                if sent_list[j][0].isdigit():
+                                    print(sent_list[j])
+                                    break
+                    elif y == False:
+                            m =0
+                            # print(sent_list)
+                            for j, word in enumerate(sent_list):
+                                if 'поле' in word.lower() or 'поля' in word.lower():
+                                    m = j
+                                if j> m and word[0].isdigit() and 'см' in word:
+                                    print(word)
+                                    break
+                
+            if 'отступ' in x.lower() and ('первой' in x.lower() or 'красной' in x.lower() or ('начал' in x.lower() and 'абзац' in x.lower())):
+                    
+                    for i, elem in enumerate(sent_list):
+                        if 'отступ' in elem.lower():
+                            flag = 0
+                            flag2 = 0
+                            for j in range(i, len(sent_list)):
+                                # print(sent_list[j])
+                                if 'абзац' in sent_list[j].lower():
+                                    flag2 = 1
+                                # print(flag2)
+                                if 'первой' in sent_list[j] or 'красной' in sent_list[j]:
+                                    flag = 1
+                                # print(flag)
+                                if sent_list[j][0].isdigit() and ('начал' in x.lower() and 'абзац' in x.lower()):
+                                    print('Отступ красной строки')
+                                    print(sent_list[j])
+                                    break
+                # print('Times New Roman' in x)
+            elif 'отступ' in x.lower():
+                    print('Отступ', x)
+                    n = 'справа' in x.lower() or 'слева' in x.lower() or 'сверху' in x.lower() or 'снизу' in x.lower()
                     print(n)
-                    num = 0
-                    for elem in n:
-                        if elem.isdigit():
-                            num=1
-                    print(num)
-                    if 'страниц' not in n and 'знаков' not in n and 'символов' not in n:
-                        break
-                    if 'количество' in word.lower():
-                        # print(i)
+                    if n:
+                        for n, elem in enumerate(sent_list):
+                            if 'отступ' in elem.lower():
+                                for j in range(n, len(sent_list)):
+                                    # print(sent_list[j]
+                                    if 'справа' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    elif 'слева' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    elif 'сверху' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    elif 'снизу' in sent_list[j]:
+                                        print('here')
+                                        for l in range(j, len(sent_list)):
+                                            # print(sent_list[j])
+                                            if sent_list[l][0].isdigit():
+                                                print(sent_list[l])
+                                                break
+                                    
+                    else:
+                        print(sent_list)
+                        for i, elem in enumerate(sent_list):
+                            if 'отступ' in elem.lower():
+                                for j in range(i, len(sent_list)):
+                                    # print(sent_list[j]
+                                    if sent_list[j][0].isdigit():
+                                        print(sent_list[j])
+                                        break
+
+            if 'интервал' in x.lower() and ('абзац' not in x.lower()) and inter == 0:
+                    print('Межстрочный интервал')
+                    print(sent_list)
+                    for j, word in enumerate(sent_list):
                         
-                        print('количество123')
-                        # while text_array[j] == text_array[j].lower():
-                        #     s+=text_array[j]+ ' '
-                        #     j+=1
-                        #     if j== len(text_array):
-                        #         break
-                        #     print(s)
-                        
-                        if num == 1:
-                            self.__requirements_of_value['Min_number_of_pages'] = n
+                        u = 0
+                        if 'интервал' in word.lower():
+                            # print(j, word)
+                            t = j
+                            fl = 0
+                            while sent_list[t][-1]!=',':
+                                
+                                if sent_list[t][0].isdigit():
+                                    fl =1
+                                    u = 1
+                                    print(sent_list[t])
+                                    inter = 1
+                                    break
+                                t+=1
+                                if t>=len(sent_list):
+                                    break
+                            
+                            if fl == 0:
+                                # print('here', 'одинарн' in x, x)
+                                if 'полуторны' in x or 'полтора' in x:
+                                    print('1,5')
+                                    u = 1
+                                    inter = 1
+                                if 'одинарн' in x or 'одинар' in x:
+                                    print('1')
+                                    u = 1
+                                    inter = 1
+                                if 'двойн' in x:
+                                    print('2')
+                                    u = 1
+                                    inter = 1
+                                if 'строки' in sent:
+                                    # print('руку', sent_list[j], sent_list)
+                                    for k in range(j, len(sent_list)):
+                                        if 'строки' in sent_list[k]:
+                                            print(sent_list[k])
+                        if u == 1:
+                            break                               
+
+            if 'выравнивание' in x.lower():
+                    # print(fl, sent_list, i)
+                    print('Выравнивание' , i)
+                    l = 0
+                    for j, word in enumerate(sent_list):
+                        for k in range(j, len(sent_list)):
+                            # print(sent_list[k])
+                            if 'ширине' in sent_list[k]:
+                                print('ширине')
+                                l = 1
+                                break
+                            elif 'левому' in sent_list[k]:
+                                print('левому краю')
+                                l = 1
+                                break
+                            elif 'правому' in sent_list[k]:
+                                print('правому краю')
+                                l = 1
+                                break
+                            elif 'центру' in sent_list[k]:
+                                print('центру')
+                                l = 1
+                                break
+                        if l == 1:
                             break
+            
+            for font in self.__recognized_fonts:
+                    if font in x:
+                        print('Font')
+                        print(font)
+            for j, word in enumerate(sent_list):
+                if 'шрифт' in x.lower() or 'кегль' in x.lower():
+                    # print('herere')
+                    for k in range(j, len(sent_list)):
+                        if len(word)>0:
+                            if sent_list[j][0].isdigit():
+                                print('Кегль')
+                                print(sent_list[k])
+                                break
+    
+    def __get_data_of_lit(self, text: str):
+        list_of_sentences = text.split('.')
+        for style in self.__recognized_lit_templates:
+                # if 'ГОСТ' in text:
+                #     print(text, style, style in text)
+                if style in text:
+                    self.__requirements_of_literature['Temlate_name'] = style
+                    print(style)
+                    break
+
+    def __get_data_of_additional(self, text: str):
+        list_of_sentences = text.split('.')
+        mesures = ['больше', 'меньше', 'от', 'до','более', 'менее', 'превышал']
+        if 'рис' in text:
+                n_text = ''
+                for i, a in enumerate(text):
+                    # if 
+                    if i>0 and i<len(text)-2 and text[i] =='.':
+                        # print(text[i-1], text[i+1])
                         
+                        if text[i+2].islower():
+                            n_text += '_'
+                        else:
+                            n_text += '.'
+                    else:
+                        n_text += a
+                # print(n_text)
+                list_of_sentences = n_text.split('.')
+                # print(list_of_sentences)
+                for format in self.__recognized_formats:
+                    if format in text:
+                        print(format)
+                
+                for j, sent in enumerate(list_of_sentences):
+                    
+                    regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                    x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                    sent_list = x.split(' ')
+                    for word in sent_list:
+                        if 'см' in word or 'мм' in word and len(word)>0:
+                            if word[0].isdigit():
+                                print(word)
+                    
+                    if 'разрешение' in sent:
+                        nm = 0
+                        regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                        x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                        sent_list = x.split(' ')
+                        for k, word in enumerate(sent_list):
+                            if 'разреш' in word:
+                                nm = k
+                        # print(nm, sent_list)
+                        for k in range(nm, len(sent_list)):
+                                # print(sent_list[k])
+                                if sent_list[k][0].isdigit():
+                                    print(sent_list[k])
+
+        if 'аблиц' in text:
+                n_text = ''
+                for i, a in enumerate(text):
+                    # if 
+                    if i>0 and i<len(text)-2 and text[i] =='.':
+                        # print(text[i-1], text[i+1])
+                        
+                        if text[i+2].islower():
+                            n_text += '_'
+                        else:
+                            n_text += '.'
+                    else:
+                        n_text += a
+                # print(n_text)
+                list_of_sentences = n_text.split('.')
+                # print(list_of_sentences)
+                for format in self.__recognized_formats:
+                    if format in text:
+                        print(format)
+                
+                for j, sent in enumerate(list_of_sentences):
+                    
+                    regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                    x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                    sent_list = x.split(' ')
+                    for word in sent_list:
+                        if 'см' in word or 'мм' in word and len(word)>0:
+                            if word[0].isdigit():
+                                print(word)
+                    
+    def __get_data_of_value(self, text: str):
+        list_of_sentences = text.split('.')
+        mesures = ['больше', 'меньше', 'от', 'до','более', 'менее', 'превышал', 'превышать', 'должен']
+        for j, sent in enumerate(list_of_sentences):
+            if 'ключ' in sent.lower() and 'слов' in sent:
+                regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                sent_list = x.split(' ')
+                # От до проверить
+                for i, word in enumerate(sent_list):
+                    word = word.replace('(','')
+                    word = word.replace(')','')
+                    if len(word)>0:
+                        if 'слов' in word and word[0].isdigit():
+                            print(word)
+                            k = i
+                            n = i
+                            f = 0
+                            while n>1:
+                            # print(sent_array[n])
+                                for mesure in mesures:
+                                    if mesure in sent_list[n].lower():
+                                        f = 1
+                                if f == 1:
+                                    print(sent_list[n])
+                                    n-=1
+                                    break
+                                else:
+                                    break
+                            n-=1
+                                    # print(sent_array[n])
+                            if 'не' in sent_list[n]:
+                                print('не')
+            elif 'слов' in sent or 'знак' in sent:
+                regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                sent_list = x.split(' ')
+                # От до проверить
+                for i, word in enumerate(sent_list):
+                    word = word.replace('(','')
+                    word = word.replace(')','')
+                    if len(word)>0:
+                        if ('слов' in word or 'знак' in word) and word[0].isdigit():
+                            print(word)
+                            k = i
+                            n = i-1
+                            f = 0
+                            while n>1:
+                                # print(sent_list[n])
+                                for mesure in mesures:
+                                    if mesure in sent_list[n].lower():
+                                        f = 1
+                                if f == 1:
+                                    print(sent_list[n])
+                                    n-=1
+                                    break
+                                else:
+                                    break
+                            n-=1
+                                    # print(sent_array[n])
+                            if 'не' in sent_list[n]:
+                                print('не')
+            
+            if 'страниц' in sent:
+                regex = re.compile("(\d )", re.S)
+                # x - объединено число в одно
+                x = regex.sub(lambda x: x.group()[0].replace(" ", ""), sent)
+                sent_list = x.split(' ')
+                # От до проверить
+                for i, word in enumerate(sent_list):
+                    word = word.replace('(','')
+                    word = word.replace(')','')
+                    if len(word)>0:
+                        if ('страниц' in word) and word[0].isdigit():
+                            print(word)
+                            k = i
+                            n = i
+                            f = 0
+                            while n>1:
+                            # print(sent_array[n])
+                                for mesure in mesures:
+                                    if mesure in sent_list[n].lower():
+                                        f = 1
+                                if f == 1:
+                                    print(sent_list[n])
+                                    n-=1
+                                    break
+                                else:
+                                    break
+                            n-=1
+                                    # print(sent_array[n])
+                            if 'не' in sent_list[n]:
+                                print('не')
+            
+
+
+
+
+
+    def __clean_text(self, text: str):
+        n_text = ''
+        for i, a in enumerate(text):
+            if i>0 and i<len(text)-1 and a=='.':
+                if text[i-1].isdigit() and text[i+1].isdigit():
+                    pass
+                else:
+                    n_text+=a
+            else:
+                n_text += a
+                
+
+    def data_getter(self, struct_elem, text):
+        data_of_style = self.__get_data_of_style(text)
+        data_of_add = self.__get_data_of_additional(text)
+        data_of_val =self.__get_data_of_value(text)
+
+    def get_parts_of_article(self):
+        paragraphs = self.__get_all_paragraphs()
+        count = 0
+        text_of_part = ''
+        dict_for_struct = {}
+        default = ''
+        for paragraph in paragraphs:
+            text = self.__get_text_from_element(paragraph)
+            list_of_sentences = text.split('.')
+            for elem_of_structure in  self.__recognized_struct_elems:
+                if elem_of_structure in text:
+                    # if elem_of_structure in dict_for_struct:
+                    #     dict_for_struct[elem_of_structure]+=text_of_part
+                    # else:
+                    #     dict_for_struct[elem_of_structure] = text_of_part
+                    # if elem_of_structure == 'Автор':
+                    #     print(text_of_part, 'Автор' in text_of_part, elem_of_structure in text, elem_of_structure =='Автор')
+                    #     print(elem_of_structure)
+                    # print(elem_of_structure, text)
+                    
+                    # print(elem_of_structure, default, text_of_part, count)
+                    # if default == 'Графический материал':
+                    #     print('HERERERE', text_of_part)
+                    if default in dict_for_struct:
+                        dict_for_struct[default] += ' '+ text_of_part
+                    else:
+                        dict_for_struct[default] = text_of_part
+                    default = elem_of_structure
+                    text_of_part = ''
+                    count= 0
+            # print(count)        
+            count+=1
+            text_of_part+= ' '+ text
+        
+        if '' in dict_for_struct:
+            txt = dict_for_struct['']
+            print(txt)
+        # print(dict_for_struct)
+        for key, value in dict_for_struct.items():
+            if 'таблиц' == key:
+                print(key, value)
+        print(dict_for_struct.keys())
+        # Получить для каждой части стать
+        for key, value in dict_for_struct.items():
+            if 'таблиц' == key:
+                t = value.replace('\xa0',' ')
+                # print(t)
+                self.data_getter(key, t)
+
+
 
                             
-                                 
-                        
-                        
-                    elif ('объём' in word.lower() or 'объем' in word.lower()) and num == 1:
-                        # print(word, i)
-                        #Две ситуации. Минимальный объем статьи : N, Объем статьи: от ... до ...
-                        # Случай 1
-                        print('количество456')
-                        n = " ".join(text_array[i:])
-                        self.__requirements_of_value['Min_number_of_pages'] = n
-                        break
-                        
-            lit = (('ссылок' in text.lower() or 'источников'in text.lower()) and 'количество' in text.lower()) or (('объём' in text.lower() or 'объем' in text.lower()) and 'списка источников' in text.lower())
-            if lit:
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                for i, word in enumerate(text_array):
-                    n = " ".join(text_array[i:])
-                    for elem in n:
-                        if elem.isdigit():
-                            num=1
-                    if 'количество' in word.lower():
-                        if 'ссылок' not in n.lower() and 'источников' not in n.lower():
-                            break
-                        if num == 1:
-                            self.__requirements_of_value['Min_lit_number'] = n
-                            break
 
-                        
-
-
-                    elif ('объём' in word.lower() or 'объем' in word.lower()) and 'списка источников' in n.lower() and num == 1:
-                        n = " ".join(text_array[i:])
-                        # print(word)
-                        if 'списка источников' not in n:
-                            break
-                        self.__requirements_of_value['Min_lit_number'] = n
-                        break
-                        
-            pic = (('картинок' in text.lower() or 'иллюстраций'in text.lower() or 'изображений' in text.lower()) and 'количество' in text.lower())
-            if pic:
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                for i, word in enumerate(text_array):
-                    n = " ".join(text_array[i:])
-                    for elem in n:
-                        if elem.isdigit():
-                            num=1
-                    if 'количество' in word.lower():
-                        if 'рисунков' not in n.lower() and 'картинок' not in n.lower() and 'изображений' not in n.lower():
-                            break
-                        if num == 1:
-                            self.__requirements_of_value['Pic_number'] = n
-                            break
-
-            tab = (('таблиц' in text.lower()) and 'количество' in text.lower())
-            if tab:
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                for i, word in enumerate(text_array):
-                    n = " ".join(text_array[i:])
-                    for elem in n:
-                        if elem.isdigit():
-                            num=1
-                    if 'количество' in word.lower():
-                        if 'таблиц' not in n.lower() :
-                            break
-                        if num == 1:
-                            self.__requirements_of_value['Tab_number'] = n
-                            break
-            key_words =   (('ключевых слов' in text.lower()) and 'количество' in text.lower())
-            if key_words:
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                for i, word in enumerate(text_array):
-                    n = " ".join(text_array[i:])
-                    for elem in n:
-                        if elem.isdigit():
-                            num=1
-                    if 'количество' in word.lower():
-                        if 'ключевых слов' not in n.lower() :
-                            break
-                        if num == 1:
-                            self.__requirements_of_value['Key_word_num'] = n
-                            break
-        # print(self.__requirements_of_value)
     
 
-    def get_structure(self):
-        paragraphs = self.__get_all_paragraphs()
-        for i, paragraph in enumerate(paragraphs):
-            text = self.__get_text_from_element(paragraph)
-            if 'название' in text.lower():
-                
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                if len(text_array) <= 2:
-                    j = i+1
-                    # print('here')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'название' in after.lower() and 'статьи' in after.lower():
-                        j+=1
-                        self.__requirements_of_structure['title'] += ' ' + after
-                        after = self.__get_text_from_element(paragraphs[j])
-                    
-                elif self.__requirements_of_structure['title'] == '' :
-                    j = i
-                    # print('here1')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'название статьи.' in after.lower():
-                        j+=1
-                        self.__requirements_of_structure['title'] += ' ' + after
-                        after = self.__get_text_from_element(paragraphs[j])
-                    
-            if 'автор' in text.lower():
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                if len(text_array) <= 6:
-                    j = i+1
-                    # print('here')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'автор' in after.lower() or ('имя' in after.lower() or 'фамилия' in after.lower() or 'отчество' in after.lower()) or ('место' in after.lower() or 'организация' in after.lower()):
-                        j+=1
-                        self.__requirements_of_structure['Author'] += ' ' + after
-                        after = self.__get_text_from_element(paragraphs[j])
-                    
-                elif self.__requirements_of_structure['Author'] == '':
-                    j = i
-                    # print('here1')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'автор' in after.lower() or ('имя' in after.lower() or 'фамилия' in after.lower() or 'отчество' in after.lower()) or ('место' in after.lower() or 'организация' in after.lower()):
-                        j+=1
-                        self.__requirements_of_structure['Author'] += ' ' + after
-                        if j<len(paragraphs):
-                            after = self.__get_text_from_element(paragraphs[j])
-                        else:
-                            break
-
-            if 'аннотаци' in text.lower():
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                if len(text_array) <= 2:
-                    j = i+1
-                    # print('here')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'аннотаци' in after.lower():
-                        j+=1
-                        self.__requirements_of_structure['Annotation'] += ' ' + after
-                        if j<len(paragraphs):
-                            after = self.__get_text_from_element(paragraphs[j])
-                        else:
-                            break
-                    
-                elif self.__requirements_of_structure['Annotation'] == '' :
-                    j = i
-                    # print('here1')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'аннотаци' in after.lower():
-                        j+=1
-                        self.__requirements_of_structure['Annotation'] += ' ' + after
-                        if j<len(paragraphs):
-                            after = self.__get_text_from_element(paragraphs[j])
-                        else:
-                            break
-
-            if 'контакн' in text.lower():
-                text_array = re.split(r'\s', text)
-                # print(text_array)
-                if len(text_array) <= 2:
-                    j = i+1
-                    # print('here')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'почта' in after.lower() and 'телефон' in after.lower():
-                        j+=1
-                        self.__requirements_of_structure['title'] += ' ' + after
-                        if j<len(paragraphs):
-                            after = self.__get_text_from_element(paragraphs[j])
-                        else:
-                            break
-                    
-                elif self.__requirements_of_structure['title'] == '' :
-                    j = i
-                    # print('here1')
-                    after = self.__get_text_from_element(paragraphs[j])
-                    while 'почта' in after.lower() and 'телефон' in after.lower():
-                        j+=1
-                        self.__requirements_of_structure['title'] += ' ' + after
-                        if j<len(paragraphs):
-                            after = self.__get_text_from_element(paragraphs[j])
-                        else:
-                            break
-
-            
-
-        # print(self.__requirements_of_structure)
-
-                        
                         
 
 
