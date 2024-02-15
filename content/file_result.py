@@ -3,11 +3,7 @@ import lxml.etree as et
 import os
 import json
 from content.read_the_file import Read_the_file
-def transform_to_xml(file):  # Поиск раздела "содержание" если такой имеется
-    z = zipfile.ZipFile('in_directory/' + file)
-    marked_up_docx = z.open("word/document.xml")
-    tree = et.parse(marked_up_docx)
-    return tree
+
 def file_opener():
     
 
